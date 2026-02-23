@@ -2035,6 +2035,28 @@ class ImagePadForOutpaint:
         return (new_image, mask.unsqueeze(0))
 
 
+class TestCurveWidget:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "curve": ("CURVE", {"default": [[0, 0], [1, 1]]}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("points",)
+    FUNCTION = "execute"
+    OUTPUT_NODE = True
+    CATEGORY = "testing"
+
+    def execute(self, curve):
+        import json
+        result = json.dumps(curve, indent=2)
+        print("Curve points:", result)
+        return {"ui": {"text": [result]}, "result": (result,)}
+
+
 NODE_CLASS_MAPPINGS = {
     "KSampler": KSampler,
     "CheckpointLoaderSimple": CheckpointLoaderSimple,
@@ -2103,6 +2125,7 @@ NODE_CLASS_MAPPINGS = {
     "ConditioningZeroOut": ConditioningZeroOut,
     "ConditioningSetTimestepRange": ConditioningSetTimestepRange,
     "LoraLoaderModelOnly": LoraLoaderModelOnly,
+    "TestCurveWidget": TestCurveWidget,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -2171,6 +2194,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     # _for_testing
     "VAEDecodeTiled": "VAE Decode (Tiled)",
     "VAEEncodeTiled": "VAE Encode (Tiled)",
+    "TestCurveWidget": "Test Curve Widget",
 }
 
 EXTENSION_WEB_DIRS = {}
