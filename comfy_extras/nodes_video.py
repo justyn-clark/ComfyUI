@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-import os
-import av
-import torch
-import folder_paths
 import json
+import logging
+import os
 from typing import Optional
+
+import av
+import folder_paths
+import torch
 from typing_extensions import override
 from fractions import Fraction
 from comfy_api.latest import ComfyExtension, io, ui, Input, InputImpl, Types
 from comfy.cli_args import args
+
 
 class SaveWEBM(io.ComfyNode):
     @classmethod
@@ -23,7 +26,14 @@ class SaveWEBM(io.ComfyNode):
                 io.String.Input("filename_prefix", default="ComfyUI"),
                 io.Combo.Input("codec", options=["vp9", "av1"]),
                 io.Float.Input("fps", default=24.0, min=0.01, max=1000.0, step=0.01),
-                io.Float.Input("crf", default=32.0, min=0, max=63.0, step=1, tooltip="Higher crf means lower quality with a smaller file size, lower crf means higher quality higher filesize."),
+                io.Float.Input(
+                    "crf",
+                    default=32.0,
+                    min=0,
+                    max=63.0,
+                    step=1,
+                    tooltip="Higher crf means lower quality with a smaller file size, lower crf means higher quality higher filesize.",
+                ),
             ],
             hidden=[io.Hidden.prompt, io.Hidden.extra_pnginfo],
             is_output_node=True,
@@ -31,8 +41,13 @@ class SaveWEBM(io.ComfyNode):
 
     @classmethod
     def execute(cls, images, codec, fps, filename_prefix, crf) -> io.NodeOutput:
-        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(
-            filename_prefix, folder_paths.get_output_directory(), images[0].shape[1], images[0].shape[0]
+        full_output_folder, filename, counter, subfolder, filename_prefix = (
+            folder_paths.get_save_image_path(
+                filename_prefix,
+                folder_paths.get_output_directory(),
+                images[0].shape[1],
+                images[0].shape[0],
+            )
         )
 
         file = f"{filename}_{counter:05}_.webm"
@@ -46,23 +61,33 @@ class SaveWEBM(io.ComfyNode):
                 container.metadata[x] = json.dumps(cls.hidden.extra_pnginfo[x])
 
         codec_map = {"vp9": "libvpx-vp9", "av1": "libsvtav1"}
-        stream = container.add_stream(codec_map[codec], rate=Fraction(round(fps * 1000), 1000))
+        stream = container.add_stream(
+            codec_map[codec], rate=Fraction(round(fps * 1000), 1000)
+        )
         stream.width = images.shape[-2]
         stream.height = images.shape[-3]
         stream.pix_fmt = "yuv420p10le" if codec == "av1" else "yuv420p"
         stream.bit_rate = 0
-        stream.options = {'crf': str(crf)}
+        stream.options = {"crf": str(crf)}
         if codec == "av1":
             stream.options["preset"] = "6"
 
         for frame in images:
-            frame = av.VideoFrame.from_ndarray(torch.clamp(frame[..., :3] * 255, min=0, max=255).to(device=torch.device("cpu"), dtype=torch.uint8).numpy(), format="rgb24")
+            frame = av.VideoFrame.from_ndarray(
+                torch.clamp(frame[..., :3] * 255, min=0, max=255)
+                .to(device=torch.device("cpu"), dtype=torch.uint8)
+                .numpy(),
+                format="rgb24",
+            )
             for packet in stream.encode(frame):
                 container.mux(packet)
         container.mux(stream.encode())
         container.close()
 
-        return io.NodeOutput(ui=ui.PreviewVideo([ui.SavedResult(file, subfolder, io.FolderType.output)]))
+        return io.NodeOutput(
+            ui=ui.PreviewVideo([ui.SavedResult(file, subfolder, io.FolderType.output)])
+        )
+
 
 class SaveVideo(io.ComfyNode):
     @classmethod
@@ -76,7 +101,7 @@ class SaveVideo(io.ComfyNode):
             step=1,
             display_name="Quality",
             tooltip="Output quality (0-100). Higher = better quality, larger files. "
-                    "Internally maps to CRF: 100→CRF 12, 50→CRF 23, 0→CRF 40.",
+            "Internally maps to CRF: 100→CRF 12, 50→CRF 23, 0→CRF 40.",
         )
         h264_speed = io.Combo.Input(
             "speed",
@@ -84,7 +109,7 @@ class SaveVideo(io.ComfyNode):
             default="auto",
             display_name="Encoding Speed",
             tooltip="Encoding speed preset. Slower = better compression at same quality. "
-                    "Maps to FFmpeg presets: Fastest=ultrafast, Balanced=medium, Best=veryslow.",
+            "Maps to FFmpeg presets: Fastest=ultrafast, Balanced=medium, Best=veryslow.",
         )
         h264_profile = io.Combo.Input(
             "profile",
@@ -92,16 +117,24 @@ class SaveVideo(io.ComfyNode):
             default="auto",
             display_name="Profile",
             tooltip="H.264 profile. 'baseline' for max compatibility (older devices), "
-                    "'main' for standard use, 'high' for best quality/compression.",
+            "'main' for standard use, 'high' for best quality/compression.",
             advanced=True,
         )
         h264_tune = io.Combo.Input(
             "tune",
-            options=["auto", "film", "animation", "grain", "stillimage", "fastdecode", "zerolatency"],
+            options=[
+                "auto",
+                "film",
+                "animation",
+                "grain",
+                "stillimage",
+                "fastdecode",
+                "zerolatency",
+            ],
             default="auto",
             display_name="Tune",
             tooltip="Optimize encoding for specific content types. "
-                    "'film' for live action, 'animation' for cartoons/anime, 'grain' to preserve film grain.",
+            "'film' for live action, 'animation' for cartoons/anime, 'grain' to preserve film grain.",
             advanced=True,
         )
 
@@ -114,7 +147,7 @@ class SaveVideo(io.ComfyNode):
             step=1,
             display_name="Quality",
             tooltip="Output quality (0-100). Higher = better quality, larger files. "
-                    "Internally maps to CRF: 100→CRF 15, 50→CRF 33, 0→CRF 50.",
+            "Internally maps to CRF: 100→CRF 15, 50→CRF 33, 0→CRF 50.",
         )
         vp9_speed = io.Combo.Input(
             "speed",
@@ -122,7 +155,7 @@ class SaveVideo(io.ComfyNode):
             default="auto",
             display_name="Encoding Speed",
             tooltip="Encoding speed. Slower = better compression. "
-                    "Maps to VP9 cpu-used: Fastest=0, Balanced=2, Best=4.",
+            "Maps to VP9 cpu-used: Fastest=0, Balanced=2, Best=4.",
         )
         vp9_row_mt = io.Boolean.Input(
             "row_mt",
@@ -137,7 +170,7 @@ class SaveVideo(io.ComfyNode):
             default="auto",
             display_name="Tile Columns",
             tooltip="Number of tile columns (as power of 2). More tiles = faster encoding "
-                    "but slightly worse compression. 'auto' picks based on resolution.",
+            "but slightly worse compression. 'auto' picks based on resolution.",
             advanced=True,
         )
 
@@ -146,28 +179,39 @@ class SaveVideo(io.ComfyNode):
             display_name="Save Video",
             category="image/video",
             description="Saves video to the output directory. "
-                        "When format/codec/quality differ from source, the video is re-encoded.",
+            "When format/codec/quality differ from source, the video is re-encoded.",
             inputs=[
                 io.Video.Input("video", tooltip="The video to save."),
                 io.String.Input(
                     "filename_prefix",
                     default="video/ComfyUI",
                     tooltip="The prefix for the file to save. "
-                            "Supports formatting like %date:yyyy-MM-dd%.",
+                    "Supports formatting like %date:yyyy-MM-dd%.",
                 ),
-                io.DynamicCombo.Input("codec", options=[
-                    io.DynamicCombo.Option("auto", []),
-                    io.DynamicCombo.Option("h264", [h264_quality, h264_speed, h264_profile, h264_tune]),
-                    io.DynamicCombo.Option("vp9", [vp9_quality, vp9_speed, vp9_row_mt, vp9_tile_columns]),
-                ], tooltip="Video codec. 'auto' preserves source when possible. "
-                           "h264 outputs MP4, vp9 outputs WebM."),
+                io.DynamicCombo.Input(
+                    "codec",
+                    options=[
+                        io.DynamicCombo.Option("auto", []),
+                        io.DynamicCombo.Option(
+                            "h264", [h264_quality, h264_speed, h264_profile, h264_tune]
+                        ),
+                        io.DynamicCombo.Option(
+                            "vp9",
+                            [vp9_quality, vp9_speed, vp9_row_mt, vp9_tile_columns],
+                        ),
+                    ],
+                    tooltip="Video codec. 'auto' preserves source when possible. "
+                    "h264 outputs MP4, vp9 outputs WebM.",
+                ),
             ],
             hidden=[io.Hidden.prompt, io.Hidden.extra_pnginfo],
             is_output_node=True,
         )
 
     @classmethod
-    def execute(cls, video: Input.Video, filename_prefix: str, codec: dict) -> io.NodeOutput:
+    def execute(
+        cls, video: Input.Video, filename_prefix: str, codec: dict
+    ) -> io.NodeOutput:
         selected_codec = codec.get("codec", "auto")
         quality = codec.get("quality")
         speed_str = codec.get("speed", "auto")
@@ -201,11 +245,10 @@ class SaveVideo(io.ComfyNode):
                 logging.warning(f"Invalid speed preset '{speed_str}', using default")
 
         width, height = video.get_dimensions()
-        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(
-            filename_prefix,
-            folder_paths.get_output_directory(),
-            width,
-            height
+        full_output_folder, filename, counter, subfolder, filename_prefix = (
+            folder_paths.get_save_image_path(
+                filename_prefix, folder_paths.get_output_directory(), width, height
+            )
         )
 
         saved_metadata = None
@@ -233,7 +276,9 @@ class SaveVideo(io.ComfyNode):
             tile_columns=int(tile_columns) if tile_columns != "auto" else None,
         )
 
-        return io.NodeOutput(ui=ui.PreviewVideo([ui.SavedResult(file, subfolder, io.FolderType.output)]))
+        return io.NodeOutput(
+            ui=ui.PreviewVideo([ui.SavedResult(file, subfolder, io.FolderType.output)])
+        )
 
 
 class CreateVideo(io.ComfyNode):
@@ -247,7 +292,9 @@ class CreateVideo(io.ComfyNode):
             inputs=[
                 io.Image.Input("images", tooltip="The images to create a video from."),
                 io.Float.Input("fps", default=30.0, min=1.0, max=120.0, step=1.0),
-                io.Audio.Input("audio", optional=True, tooltip="The audio to add to the video."),
+                io.Audio.Input(
+                    "audio", optional=True, tooltip="The audio to add to the video."
+                ),
             ],
             outputs=[
                 io.Video.Output(),
@@ -255,10 +302,17 @@ class CreateVideo(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, images: Input.Image, fps: float, audio: Optional[Input.Audio] = None) -> io.NodeOutput:
+    def execute(
+        cls, images: Input.Image, fps: float, audio: Optional[Input.Audio] = None
+    ) -> io.NodeOutput:
         return io.NodeOutput(
-            InputImpl.VideoFromComponents(Types.VideoComponents(images=images, audio=audio, frame_rate=Fraction(fps)))
+            InputImpl.VideoFromComponents(
+                Types.VideoComponents(
+                    images=images, audio=audio, frame_rate=Fraction(fps)
+                )
+            )
         )
+
 
 class GetVideoComponents(io.ComfyNode):
     @classmethod
@@ -269,7 +323,9 @@ class GetVideoComponents(io.ComfyNode):
             category="image/video",
             description="Extracts all components from a video: frames, audio, and framerate.",
             inputs=[
-                io.Video.Input("video", tooltip="The video to extract components from."),
+                io.Video.Input(
+                    "video", tooltip="The video to extract components from."
+                ),
             ],
             outputs=[
                 io.Image.Output(display_name="images"),
@@ -281,21 +337,29 @@ class GetVideoComponents(io.ComfyNode):
     @classmethod
     def execute(cls, video: Input.Video) -> io.NodeOutput:
         components = video.get_components()
-        return io.NodeOutput(components.images, components.audio, float(components.frame_rate))
+        return io.NodeOutput(
+            components.images, components.audio, float(components.frame_rate)
+        )
 
 
 class LoadVideo(io.ComfyNode):
     @classmethod
     def define_schema(cls):
         input_dir = folder_paths.get_input_directory()
-        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
+        files = [
+            f
+            for f in os.listdir(input_dir)
+            if os.path.isfile(os.path.join(input_dir, f))
+        ]
         files = folder_paths.filter_files_content_types(files, ["video"])
         return io.Schema(
             node_id="LoadVideo",
             display_name="Load Video",
             category="image/video",
             inputs=[
-                io.Combo.Input("file", options=sorted(files), upload=io.UploadType.video),
+                io.Combo.Input(
+                    "file", options=sorted(files), upload=io.UploadType.video
+                ),
             ],
             outputs=[
                 io.Video.Output(),
@@ -333,6 +397,7 @@ class VideoExtension(ComfyExtension):
             GetVideoComponents,
             LoadVideo,
         ]
+
 
 async def comfy_entrypoint() -> VideoExtension:
     return VideoExtension()

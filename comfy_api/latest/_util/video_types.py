@@ -5,6 +5,7 @@ from fractions import Fraction
 from typing import Optional
 from .._input import ImageInput, AudioInput
 
+
 class VideoCodec(str, Enum):
     AUTO = "auto"
     H264 = "h264"
@@ -46,6 +47,7 @@ class VideoContainer(str, Enum):
 
 class VideoSpeedPreset(str, Enum):
     """Encoding speed presets - slower = better compression at same quality."""
+
     AUTO = "auto"
     FASTEST = "Fastest"
     FAST = "Fast"
@@ -104,6 +106,7 @@ def quality_to_crf(quality: int, codec: str = "h264") -> int:
     # Default fallback
     return 23
 
+
 @dataclass
 class VideoComponents:
     """
@@ -114,5 +117,3 @@ class VideoComponents:
     frame_rate: Fraction
     audio: Optional[AudioInput] = None
     metadata: Optional[dict] = None
-
-

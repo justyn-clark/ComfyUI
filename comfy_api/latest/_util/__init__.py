@@ -1,4 +1,10 @@
-from .video_types import VideoContainer, VideoCodec, VideoComponents, VideoSpeedPreset, quality_to_crf
+from .video_types import (
+    VideoContainer,
+    VideoCodec,
+    VideoComponents,
+    VideoSpeedPreset,
+    quality_to_crf,
+)
 from .geometry_types import VOXEL, MESH
 from .image_types import SVG
 

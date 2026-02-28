@@ -10,7 +10,13 @@ import json
 import numpy as np
 import math
 import torch
-from .._util import VideoContainer, VideoCodec, VideoComponents, VideoSpeedPreset, quality_to_crf
+from .._util import (
+    VideoContainer,
+    VideoCodec,
+    VideoComponents,
+    VideoSpeedPreset,
+    quality_to_crf,
+)
 
 
 def container_to_output_format(container_format: str | None) -> str | None:
@@ -82,9 +88,9 @@ class VideoFromFile(VideoInput):
         """
         if isinstance(self.__file, io.BytesIO):
             self.__file.seek(0)  # Reset the BytesIO object to the beginning
-        with av.open(self.__file, mode='r') as container:
+        with av.open(self.__file, mode="r") as container:
             for stream in container.streams:
-                if stream.type == 'video':
+                if stream.type == "video":
                     assert isinstance(stream, av.VideoStream)
                     return stream.width, stream.height
         raise ValueError(f"No video stream found in file '{self.__file}'")
@@ -138,7 +144,9 @@ class VideoFromFile(VideoInput):
             # 2. Try to estimate from duration and average_rate using only metadata
             if container.duration is not None and video_stream.average_rate:
                 duration_seconds = float(container.duration / av.time_base)
-                estimated_frames = int(round(duration_seconds * float(video_stream.average_rate)))
+                estimated_frames = int(
+                    round(duration_seconds * float(video_stream.average_rate))
+                )
                 if estimated_frames > 0:
                     return estimated_frames
 
@@ -148,7 +156,9 @@ class VideoFromFile(VideoInput):
                 and video_stream.average_rate
             ):
                 duration_seconds = float(video_stream.duration * video_stream.time_base)
-                estimated_frames = int(round(duration_seconds * float(video_stream.average_rate)))
+                estimated_frames = int(
+                    round(duration_seconds * float(video_stream.average_rate))
+                )
                 if estimated_frames > 0:
                     return estimated_frames
 
@@ -160,7 +170,9 @@ class VideoFromFile(VideoInput):
                     frame_count += 1
 
             if frame_count == 0:
-                raise ValueError(f"Could not determine frame count for file '{self.__file}'")
+                raise ValueError(
+                    f"Could not determine frame count for file '{self.__file}'"
+                )
             return frame_count
 
     def get_frame_rate(self) -> Fraction:
@@ -181,7 +193,9 @@ class VideoFromFile(VideoInput):
             if video_stream.frames and container.duration:
                 duration_seconds = float(container.duration / av.time_base)
                 if duration_seconds > 0:
-                    return Fraction(video_stream.frames / duration_seconds).limit_denominator()
+                    return Fraction(
+                        video_stream.frames / duration_seconds
+                    ).limit_denominator()
 
             # Last resort: match get_components_internal default
             return Fraction(1)
@@ -195,53 +209,69 @@ class VideoFromFile(VideoInput):
         """
         if isinstance(self.__file, io.BytesIO):
             self.__file.seek(0)
-        with av.open(self.__file, mode='r') as container:
+        with av.open(self.__file, mode="r") as container:
             return container.format.name
 
     def get_components_internal(self, container: InputContainer) -> VideoComponents:
         # Get video frames
         frames = []
         for frame in container.decode(video=0):
-            img = frame.to_ndarray(format='rgb24')  # shape: (H, W, 3)
+            img = frame.to_ndarray(format="rgb24")  # shape: (H, W, 3)
             img = torch.from_numpy(img) / 255.0  # shape: (H, W, 3)
             frames.append(img)
 
         images = torch.stack(frames) if len(frames) > 0 else torch.zeros(0, 3, 0, 0)
 
         # Get frame rate
-        video_stream = next(s for s in container.streams if s.type == 'video')
-        frame_rate = Fraction(video_stream.average_rate) if video_stream and video_stream.average_rate else Fraction(1)
+        video_stream = next(s for s in container.streams if s.type == "video")
+        frame_rate = (
+            Fraction(video_stream.average_rate)
+            if video_stream and video_stream.average_rate
+            else Fraction(1)
+        )
 
         # Get audio if available
         audio = None
         try:
             container.seek(0)  # Reset the container to the beginning
             for stream in container.streams:
-                if stream.type != 'audio':
+                if stream.type != "audio":
                     continue
                 assert isinstance(stream, av.AudioStream)
                 audio_frames = []
                 for packet in container.demux(stream):
                     for frame in packet.decode():
                         assert isinstance(frame, av.AudioFrame)
-                        audio_frames.append(frame.to_ndarray())  # shape: (channels, samples)
+                        audio_frames.append(
+                            frame.to_ndarray()
+                        )  # shape: (channels, samples)
                 if len(audio_frames) > 0:
-                    audio_data = np.concatenate(audio_frames, axis=1)  # shape: (channels, total_samples)
-                    audio_tensor = torch.from_numpy(audio_data).unsqueeze(0)  # shape: (1, channels, total_samples)
-                    audio = AudioInput({
-                        "waveform": audio_tensor,
-                        "sample_rate": int(stream.sample_rate) if stream.sample_rate else 1,
-                    })
+                    audio_data = np.concatenate(
+                        audio_frames, axis=1
+                    )  # shape: (channels, total_samples)
+                    audio_tensor = torch.from_numpy(audio_data).unsqueeze(
+                        0
+                    )  # shape: (1, channels, total_samples)
+                    audio = AudioInput(
+                        {
+                            "waveform": audio_tensor,
+                            "sample_rate": int(stream.sample_rate)
+                            if stream.sample_rate
+                            else 1,
+                        }
+                    )
         except StopIteration:
             pass  # No audio stream
 
         metadata = container.metadata
-        return VideoComponents(images=images, audio=audio, frame_rate=frame_rate, metadata=metadata)
+        return VideoComponents(
+            images=images, audio=audio, frame_rate=frame_rate, metadata=metadata
+        )
 
     def get_components(self) -> VideoComponents:
         if isinstance(self.__file, io.BytesIO):
             self.__file.seek(0)  # Reset the BytesIO object to the beginning
-        with av.open(self.__file, mode='r') as container:
+        with av.open(self.__file, mode="r") as container:
             return self.get_components_internal(container)
         raise ValueError(f"No video stream found in file '{self.__file}'")
 
@@ -260,13 +290,23 @@ class VideoFromFile(VideoInput):
     ):
         if isinstance(self.__file, io.BytesIO):
             self.__file.seek(0)
-        with av.open(self.__file, mode='r') as container:
+        with av.open(self.__file, mode="r") as container:
             container_format = container.format.name
-            video_encoding = container.streams.video[0].codec.name if len(container.streams.video) > 0 else None
+            video_encoding = (
+                container.streams.video[0].codec.name
+                if len(container.streams.video) > 0
+                else None
+            )
             reuse_streams = True
-            if format != VideoContainer.AUTO and format not in container_format.split(","):
+            if format != VideoContainer.AUTO and format not in container_format.split(
+                ","
+            ):
                 reuse_streams = False
-            if codec != VideoCodec.AUTO and codec != video_encoding and video_encoding is not None:
+            if (
+                codec != VideoCodec.AUTO
+                and codec != video_encoding
+                and video_encoding is not None
+            ):
                 reuse_streams = False
             if quality is not None or speed is not None:
                 reuse_streams = False
@@ -309,8 +349,12 @@ class VideoFromFile(VideoInput):
                 # Add streams to the new container
                 stream_map = {}
                 for stream in streams:
-                    if isinstance(stream, (av.VideoStream, av.AudioStream, SubtitleStream)):
-                        out_stream = output_container.add_stream_from_template(template=stream, opaque=True)
+                    if isinstance(
+                        stream, (av.VideoStream, av.AudioStream, SubtitleStream)
+                    ):
+                        out_stream = output_container.add_stream_from_template(
+                            template=stream, opaque=True
+                        )
                         stream_map[stream] = out_stream
 
                 # Write packets to the new container
@@ -338,7 +382,7 @@ class VideoFromComponents(VideoInput):
         return VideoComponents(
             images=self.__components.images,
             audio=self.__components.audio,
-            frame_rate=self.__components.frame_rate
+            frame_rate=self.__components.frame_rate,
         )
 
     def save_to(
@@ -399,7 +443,9 @@ class VideoFromComponents(VideoInput):
         if resolved_format == VideoContainer.MP4:
             container_options["movflags"] = "use_metadata_tags"
 
-        with av.open(path, mode='w', options=container_options, **extra_kwargs) as output:
+        with av.open(
+            path, mode="w", options=container_options, **extra_kwargs
+        ) as output:
             if metadata is not None:
                 for key, value in metadata.items():
                     output.metadata[key] = json.dumps(value)
@@ -409,48 +455,50 @@ class VideoFromComponents(VideoInput):
             video_stream.width = self.__components.images.shape[2]
             video_stream.height = self.__components.images.shape[1]
 
-            video_stream.pix_fmt = 'yuv420p'
+            video_stream.pix_fmt = "yuv420p"
             if resolved_codec == VideoCodec.VP9:
                 video_stream.bit_rate = 0
 
             if quality is not None:
                 crf = quality_to_crf(quality, ffmpeg_codec)
-                video_stream.options['crf'] = str(crf)
+                video_stream.options["crf"] = str(crf)
 
             if speed is not None and speed != VideoSpeedPreset.AUTO:
                 if isinstance(speed, str):
                     speed = VideoSpeedPreset(speed)
                 preset = speed.to_ffmpeg_preset(ffmpeg_codec)
                 if resolved_codec == VideoCodec.VP9:
-                    video_stream.options['cpu-used'] = preset
+                    video_stream.options["cpu-used"] = preset
                 else:
-                    video_stream.options['preset'] = preset
+                    video_stream.options["preset"] = preset
 
             # H.264-specific options
             if resolved_codec == VideoCodec.H264:
                 if profile is not None:
-                    video_stream.options['profile'] = profile
+                    video_stream.options["profile"] = profile
                 if tune is not None:
-                    video_stream.options['tune'] = tune
+                    video_stream.options["tune"] = tune
 
             # VP9-specific options
             if resolved_codec == VideoCodec.VP9:
                 if row_mt:
-                    video_stream.options['row-mt'] = '1'
+                    video_stream.options["row-mt"] = "1"
                 if tile_columns is not None:
-                    video_stream.options['tile-columns'] = str(tile_columns)
+                    video_stream.options["tile-columns"] = str(tile_columns)
 
             audio_sample_rate = 1
             audio_stream: Optional[av.AudioStream] = None
             if self.__components.audio:
-                audio_sample_rate = int(self.__components.audio['sample_rate'])
-                audio_codec = 'libopus' if resolved_format == VideoContainer.WEBM else 'aac'
+                audio_sample_rate = int(self.__components.audio["sample_rate"])
+                audio_codec = (
+                    "libopus" if resolved_format == VideoContainer.WEBM else "aac"
+                )
                 audio_stream = output.add_stream(audio_codec, rate=audio_sample_rate)
 
             for i, frame in enumerate(self.__components.images):
                 img = (frame * 255).clamp(0, 255).byte().cpu().numpy()
-                video_frame = av.VideoFrame.from_ndarray(img, format='rgb24')
-                video_frame = video_frame.reformat(format='yuv420p')
+                video_frame = av.VideoFrame.from_ndarray(img, format="rgb24")
+                video_frame = video_frame.reformat(format="yuv420p")
                 packet = video_stream.encode(video_frame)
                 output.mux(packet)
 
@@ -458,12 +506,19 @@ class VideoFromComponents(VideoInput):
             output.mux(packet)
 
             if audio_stream and self.__components.audio:
-                waveform = self.__components.audio['waveform']
-                waveform = waveform[:, :, :math.ceil((audio_sample_rate / frame_rate) * self.__components.images.shape[0])]
+                waveform = self.__components.audio["waveform"]
+                waveform = waveform[
+                    :,
+                    :,
+                    : math.ceil(
+                        (audio_sample_rate / frame_rate)
+                        * self.__components.images.shape[0]
+                    ),
+                ]
                 audio_frame = av.AudioFrame.from_ndarray(
                     waveform.movedim(2, 1).reshape(1, -1).float().numpy(),
-                    format='flt',
-                    layout='mono' if waveform.shape[1] == 1 else 'stereo'
+                    format="flt",
+                    layout="mono" if waveform.shape[1] == 1 else "stereo",
                 )
                 audio_frame.sample_rate = audio_sample_rate
                 audio_frame.pts = 0
