@@ -588,9 +588,11 @@ class CheckpointLoader:
 class CheckpointLoaderSimple:
     @classmethod
     def INPUT_TYPES(s):
+        ckpts = folder_paths.get_filename_list("checkpoints")
+        default_ckpt = ckpts[0] if len(ckpts) > 0 else ""
         return {
             "required": {
-                "ckpt_name": (folder_paths.get_filename_list("checkpoints"), {"tooltip": "The name of the checkpoint (model) to load."}),
+                "ckpt_name": ("STRING", {"default": default_ckpt, "tooltip": "The name of the checkpoint (model) to load."}),
             }
         }
     RETURN_TYPES = ("MODEL", "CLIP", "VAE")
@@ -604,7 +606,17 @@ class CheckpointLoaderSimple:
     SEARCH_ALIASES = ["load model", "checkpoint", "model loader", "load checkpoint", "ckpt", "model"]
 
     def load_checkpoint(self, ckpt_name):
-        ckpt_path = folder_paths.get_full_path_or_raise("checkpoints", ckpt_name)
+        try:
+            ckpt_path = folder_paths.get_full_path_or_raise("checkpoints", ckpt_name)
+        except FileNotFoundError:
+            ckpt_path = None
+            for search_path in folder_paths.get_folder_paths("checkpoints"):
+                candidate = os.path.join(search_path, ckpt_name)
+                if os.path.exists(candidate):
+                    ckpt_path = candidate
+                    break
+            if ckpt_path is None:
+                raise
         out = comfy.sd.load_checkpoint_guess_config(ckpt_path, output_vae=True, output_clip=True, embedding_directory=folder_paths.get_folder_paths("embeddings"))
         return out[:3]
 
@@ -620,7 +632,8 @@ class DiffusersLoader:
                     if "model_index.json" in files:
                         paths.append(os.path.relpath(root, start=search_path))
 
-        return {"required": {"model_path": (paths,), }}
+        default_path = paths[0] if len(paths) > 0 else ""
+        return {"required": {"model_path": ("STRING", {"default": default_path}), }}
     RETURN_TYPES = ("MODEL", "CLIP", "VAE")
     FUNCTION = "load_checkpoint"
 
