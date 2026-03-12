@@ -24,7 +24,7 @@ import time
 from comfy.cli_args import args, enables_dynamic_vram
 from app.logger import setup_logger
 import itertools
-import utils.extra_config
+import utils.extra_config  # noqa: F401
 from utils.mime_types import init_mime_types
 import faulthandler
 import logging
