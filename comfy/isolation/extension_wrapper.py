@@ -306,7 +306,7 @@ class ComfyNodeExtension(ExtensionBase):
             node_name,
             len(inputs),
         )
-        if os.environ.get("PYISOLATE_ISOLATION_ACTIVE") == "1":
+        if os.environ.get("PYISOLATE_CHILD") == "1":
             _relieve_child_vram_pressure("EXT:pre_execute")
 
         resolved_inputs = self._resolve_remote_objects(inputs)
@@ -326,6 +326,13 @@ class ComfyNodeExtension(ExtensionBase):
             "Hidden.dynprompt": Hidden.dynprompt,
             "Hidden.auth_token_comfy_org": Hidden.auth_token_comfy_org,
             "Hidden.api_key_comfy_org": Hidden.api_key_comfy_org,
+            # Uppercase enum VALUE forms — V3 execution engine passes these
+            "UNIQUE_ID": Hidden.unique_id,
+            "PROMPT": Hidden.prompt,
+            "EXTRA_PNGINFO": Hidden.extra_pnginfo,
+            "DYNPROMPT": Hidden.dynprompt,
+            "AUTH_TOKEN_COMFY_ORG": Hidden.auth_token_comfy_org,
+            "API_KEY_COMFY_ORG": Hidden.api_key_comfy_org,
         }
 
         # Find and extract hidden parameters (both enum and string form)
@@ -383,29 +390,16 @@ class ComfyNodeExtension(ExtensionBase):
         if type(result).__name__ == "NodeOutput":
             result = result.args
         if self._is_comfy_protocol_return(result):
-            logger.debug(
-                "%s ISO:child_execute_done ext=%s node=%s protocol_return=1",
-                LOG_PREFIX,
-                getattr(self, "name", "?"),
-                node_name,
-            )
             wrapped = self._wrap_unpicklable_objects(result)
             return wrapped
 
         if not isinstance(result, tuple):
             result = (result,)
-        logger.debug(
-            "%s ISO:child_execute_done ext=%s node=%s protocol_return=0 outputs=%d",
-            LOG_PREFIX,
-            getattr(self, "name", "?"),
-            node_name,
-            len(result),
-        )
         wrapped = self._wrap_unpicklable_objects(result)
         return wrapped
 
     async def flush_transport_state(self) -> int:
-        if os.environ.get("PYISOLATE_ISOLATION_ACTIVE") != "1":
+        if os.environ.get("PYISOLATE_CHILD") != "1":
             return 0
         logger.debug(
             "%s ISO:child_flush_start ext=%s", LOG_PREFIX, getattr(self, "name", "?")
@@ -492,6 +486,14 @@ class ComfyNodeExtension(ExtensionBase):
                 k: self._wrap_unpicklable_objects(v) for k, v in data.items()
             }
             return {"__pyisolate_attrdict__": True, "data": converted_dict}
+
+        from pyisolate._internal.serialization_registry import SerializerRegistry
+
+        registry = SerializerRegistry.get_instance()
+        if registry.is_data_type(type_name):
+            serializer = registry.get_serializer(type_name)
+            if serializer:
+                return serializer(data)
 
         object_id = str(uuid.uuid4())
         self.remote_objects[object_id] = data

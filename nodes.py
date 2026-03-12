@@ -2455,6 +2455,8 @@ async def init_builtin_extra_nodes():
         "nodes_wan.py",
         "nodes_lotus.py",
         "nodes_hunyuan3d.py",
+        "nodes_save_ply.py",
+        "nodes_save_npz.py",
         "nodes_primitive.py",
         "nodes_cfg.py",
         "nodes_optimalsteps.py",
@@ -2486,6 +2488,8 @@ async def init_builtin_extra_nodes():
         "nodes_toolkit.py",
         "nodes_replacements.py",
         "nodes_nag.py",
+        "nodes_sdpose.py",
+        "nodes_math.py",
     ]
 
     import_failed = []

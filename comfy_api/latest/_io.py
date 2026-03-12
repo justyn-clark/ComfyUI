@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 from comfy_api.internal import (_ComfyNodeInternal, _NodeOutputInternal, classproperty, copy_class, first_real_override, is_class,
     prune_dict, shallow_clone_class)
 from comfy_execution.graph_utils import ExecutionBlocker
-from ._util import MESH, VOXEL, SVG as _SVG, File3D
+from ._util import MESH, VOXEL, SVG as _SVG, File3D, PLY as _PLY, NPZ as _NPZ
 
 
 class FolderType(str, Enum):
@@ -678,6 +678,16 @@ class Mesh(ComfyTypeIO):
     Type = MESH
 
 
+@comfytype(io_type="PLY")
+class Ply(ComfyTypeIO):
+    Type = _PLY
+
+
+@comfytype(io_type="NPZ")
+class Npz(ComfyTypeIO):
+    Type = _NPZ
+
+
 @comfytype(io_type="FILE_3D")
 class File3DAny(ComfyTypeIO):
     """General 3D file type - accepts any supported 3D format."""
@@ -1238,6 +1248,19 @@ class BoundingBox(ComfyTypeIO):
             if self.force_input is not None:
                 d["forceInput"] = self.force_input
             return d
+
+
+@comfytype(io_type="CURVE")
+class Curve(ComfyTypeIO):
+    CurvePoint = tuple[float, float]
+    Type = list[CurvePoint]
+
+    class Input(WidgetInput):
+        def __init__(self, id: str, display_name: str=None, optional=False, tooltip: str=None,
+                     socketless: bool=True, default: list[tuple[float, float]]=None, advanced: bool=None):
+            super().__init__(id, display_name, optional, tooltip, None, default, socketless, None, None, None, None, advanced)
+            if default is None:
+                self.default = [(0.0, 0.0), (1.0, 1.0)]
 
 
 DYNAMIC_INPUT_LOOKUP: dict[str, Callable[[dict[str, Any], dict[str, Any], tuple[str, dict[str, Any]], str, list[str] | None], None]] = {}
@@ -2184,6 +2207,8 @@ __all__ = [
     "LossMap",
     "Voxel",
     "Mesh",
+    "Ply",
+    "Npz",
     "File3DAny",
     "File3DGLB",
     "File3DGLTF",
@@ -2226,5 +2251,6 @@ __all__ = [
     "PriceBadgeDepends",
     "PriceBadge",
     "BoundingBox",
+    "Curve",
     "NodeReplace",
 ]
