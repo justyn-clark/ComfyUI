@@ -36,6 +36,26 @@
 
 ComfyUI lets you design and execute advanced stable diffusion pipelines using a graph/nodes/flowchart based interface. Available on Windows, Linux, and macOS.
 
+## JCN local fork notes
+
+This repository is a local JCN fork of upstream ComfyUI. Most of this README tracks upstream project documentation, but this fork also includes a tracked local launcher for the Mac mini operator workflow:
+
+- Launcher: `./run-comfyui.sh`
+- Local URL: `http://127.0.0.1:8188`
+- Shared base directory: `../jcn-asset-studio/comfyui`
+- Shared input directory: `../jcn-asset-studio/comfyui/input`
+- Shared output directory: `../jcn-asset-studio/comfyui/output`
+
+The launcher activates the repo `.venv`, creates the shared input/output directories if needed, and starts `python main.py` with `--base-directory`, `--input-directory`, and `--output-directory` pointed at the shared asset-studio workspace.
+
+For this fork's normal local usage, prefer:
+
+```bash
+./run-comfyui.sh
+```
+
+Use the upstream install and platform guidance below when you need to rebuild the environment, update dependencies, or run ComfyUI without the JCN wrapper.
+
 ## Get Started
 
 ### Local
