@@ -2,6 +2,8 @@
 
 This folder contains the GLSL fragment shaders extracted from blueprint JSON files for easier editing and version control.
 
+For the JCN local fork, keep this shader workflow aligned with the repo-root `run-comfyui.sh` launcher and the shared `../jcn-asset-studio/comfyui` base directory. Shader edits here should assume the normal local runtime is the wrapper-driven Mac mini setup, not only the upstream default launch path.
+
 ## File Naming Convention
 
 `{Blueprint_Name}_{node_id}.frag`
